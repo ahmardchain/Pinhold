@@ -17,7 +17,8 @@
     "verify": "tsx --disable-warning=ExperimentalWarning scripts/verify.ts",
     "sponsor": "tsx --disable-warning=ExperimentalWarning sponsor/cli.ts",
     "preflight": "tsx --disable-warning=ExperimentalWarning scripts/preflight.ts",
-    "check:turnaway": "tsx --disable-warning=ExperimentalWarning scripts/check-turnaway.ts"
+    "check:turnaway": "tsx --disable-warning=ExperimentalWarning scripts/check-turnaway.ts",
+    "register:agent": "tsx --disable-warning=ExperimentalWarning scripts/register-agent.ts"
   },
   "dependencies": {
     "@celo/attribution-tags": "^0.5.0",

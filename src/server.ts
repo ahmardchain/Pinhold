@@ -11,6 +11,7 @@
 // is refused before it is ever asked to pay.
 
 import { randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
@@ -272,9 +273,36 @@ export function buildServer(d: ServerDeps) {
     if (!b) return void res.status(404).type("text").send("Unknown booking");
     res.type("html").send(renderReceipt(b, store.getOwner(b.ownerId), store.timeline(b.id), store.txs(b.id), cfg));
   });
+  // ERC-8004 registration file (agentURI) for Pinhold's own agent identity.
+  const registration = (_req: Request, res: Response) => res.json(agentRegistration(cfg, d.payTo));
+  app.get("/agent.json", registration);
+  const icon = readFileSync(new URL("./web/icon.svg", import.meta.url));
+  app.get("/icon.svg", (_req, res) => res.type("image/svg+xml").send(icon));
+  app.get("/.well-known/agent-registration.json", registration);
+
   app.get("/healthz", (_req, res) => res.json({ ok: true, network: cfg.net.name, dryRun: cfg.DRY_RUN }));
 
   return app;
+}
+
+export function agentRegistration(cfg: Config, wallet: Address) {
+  const ids = (process.env.ERC8004_AGENT_ID ? [{ agentId: Number(process.env.ERC8004_AGENT_ID), agentRegistry: `eip155:${cfg.net.pay.chainId}:${cfg.net.erc8004IdentityRegistry}` }] : []);
+  return {
+    type: "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+    name: "Pinhold",
+    description: "Escrow agent for Telegram channel ad placements. A sponsor's Self-verified agent pays USD₮ over x402; Pinhold watches the post through its hold window, then swaps to cNGN on Textile FX and pays the Self-verified channel owner, or refunds the payer if the post never went up, was deleted or was edited.",
+    image: `${cfg.PUBLIC_BASE_URL}/icon.svg`,
+    services: [
+      { name: "web", endpoint: cfg.PUBLIC_BASE_URL },
+      { name: "booking-api", endpoint: `${cfg.PUBLIC_BASE_URL}/api/bookings`, payment: "x402", auth: "Self Agent ID" },
+    ],
+    x402Support: true,
+    active: true,
+    registrations: ids,
+    supportedTrust: ["reputation"],
+    wallet,
+    contact: { x: "@Ahmardchain", email: "ahmardchain@gmail.com", source: `https://github.com/${cfg.GITHUB_REPO}` },
+  };
 }
 
 export function fmt(units: bigint, decimals = 6): string {

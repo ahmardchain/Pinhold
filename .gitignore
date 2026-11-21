@@ -8,3 +8,4 @@ data/
 .self/
 dist/
 coverage/
+!.env.sponsor.example

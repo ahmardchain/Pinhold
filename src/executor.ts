@@ -79,6 +79,12 @@ export class Executor {
       if (!quote) return { type: "FX_UNAVAILABLE" };
       const cap = checkDailyCap(this.spentToday(), quote.takerPays, this.d.dailyCap, this.d.now());
       if (!cap.ok) return { type: "DEFERRED", until: cap.retryAt };
+      // A rate move beyond the buffer is paid from Pinhold's own float, if there is one.
+      // Without enough balance the release waits (FX_UNAVAILABLE) and refunds after the retry window.
+      if ((await fxWallet.erc20Balance(net.fx.stable.address)) < quote.takerPaysRaw) {
+        this.d.log(`Booking ${b.id}: wallet cannot cover the swap (${quote.takerPaysRaw}); waiting`);
+        return { type: "FX_UNAVAILABLE" };
+      }
 
       const allowance = await fxWallet.erc20Allowance(net.fx.stable.address, quote.reactor);
       if (allowance < quote.takerPaysRaw && !store.getTx(b.id, "approve")) {
